@@ -1,0 +1,239 @@
+#!/usr/bin/env python3
+# gksu (Essora) - versión detach tipo gksu clásico
+# Pide contraseña (GTK3), valida con sudo, lanza el comando como root y SALE.
+# Si querés modo espera, usá: gksu --wait comando ...
+# autor josejp2424
+import os
+import sys
+import subprocess
+import gi
+
+gi.require_version("Gtk", "3.0")
+from gi.repository import Gtk, Gdk
+
+
+class PasswordDialog(Gtk.Window):
+    def __init__(self, title, text, pass_label):
+        super().__init__(title=title)
+
+        self.set_decorated(False)
+        self.set_resizable(False)
+        self.set_position(Gtk.WindowPosition.CENTER)
+        self.set_default_size(380, 200)
+        self.connect("delete-event", self.on_cancel)
+
+        main = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
+        self.add(main)
+
+        header = Gtk.HeaderBar()
+        header.set_show_close_button(False)
+        header.set_decoration_layout(":")
+        header.set_title(title)
+
+
+        icon_path = "/usr/local/Oply/icons/gksu.svg"
+        if os.path.exists(icon_path):
+            img = Gtk.Image.new_from_file(icon_path)
+            img.set_pixel_size(18)
+            header.pack_start(img)
+
+        main.pack_start(header, False, False, 0)
+        main.pack_start(Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL), False, False, 0)
+
+        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=12)
+        box.set_margin_top(20)
+        box.set_margin_bottom(20)
+        box.set_margin_start(30)
+        box.set_margin_end(30)
+        main.pack_start(box, True, True, 0)
+
+        lbl = Gtk.Label()
+        lbl.set_markup(text)  
+        lbl.set_line_wrap(True)
+        lbl.set_justify(Gtk.Justification.CENTER)
+        box.pack_start(lbl, False, False, 0)
+
+        pl = Gtk.Label(label=pass_label)
+        pl.set_xalign(0)
+        box.pack_start(pl, False, False, 0)
+
+        self.entry = Gtk.Entry()
+        self.entry.set_visibility(False)
+        self.entry.set_activates_default(True)
+        self.entry.connect("activate", self.on_ok)
+        box.pack_start(self.entry, False, False, 0)
+
+        btns = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        btns.set_halign(Gtk.Align.END)
+
+        self.cancel_btn = Gtk.Button(label=self._t("Cancel"))
+        self.cancel_btn.connect("clicked", self.on_cancel)
+
+        self.ok_btn = Gtk.Button(label=self._t("OK"))
+        self.ok_btn.connect("clicked", self.on_ok)
+        self.ok_btn.set_can_default(True)
+        self.ok_btn.grab_default()
+
+        btns.pack_start(self.cancel_btn, False, False, 0)
+        btns.pack_start(self.ok_btn, False, False, 0)
+        box.pack_start(btns, False, False, 0)
+
+        self.password = None
+        self.cancelled = False
+
+        self.apply_dark_styles()
+
+    def apply_dark_styles(self):
+        css = b"""
+        window { background-color:#151517; color:#E5E5E5; }
+        headerbar { background-color:#151517; border-bottom:1px solid #2D2D2F; }
+        label { color:#E5E5E5; }
+        entry { background:#2D2D2F; color:#E5E5E5; border:1px solid #404042; padding:6px; }
+        button { background:#2D2D2F; color:#E5E5E5; border:1px solid #404042; padding:6px 12px; }
+        button:hover { background:#3A3A3C; }
+        """
+        provider = Gtk.CssProvider()
+        provider.load_from_data(css)
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(), provider, Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+
+    def _t(self, key):
+        tr = get_translations()
+        if key.lower() == "cancel":
+            return tr["cancel"]
+        if key.lower() == "ok":
+            return tr["ok"]
+        return key
+
+    def on_ok(self, *_):
+        pw = self.entry.get_text()
+        if pw.strip():
+            self.password = pw
+            self.destroy()
+            Gtk.main_quit()
+
+    def on_cancel(self, *_):
+        self.cancelled = True
+        self.destroy()
+        Gtk.main_quit()
+
+    def run(self):
+        self.show_all()
+        self.entry.grab_focus()
+        Gtk.main()
+        return None if self.cancelled else self.password
+
+
+def get_translations():
+    lang = os.getenv("LANG", "en").split(".")[0]
+
+    user = "riseup"
+
+    tr = {
+        "pl": {"title":"Uwierzytelnianie","text":f"Wymagana jest Autentykacja<br/>dla użytkownika: <b>{user}</b>",
+               "pass_label":"Hasło:","wrong":"Błędne hasło, spróbuj ponownie","cancel":"Anuluj","ok":"Uwierzytelnij"},
+        "es": {"title":"Autenticación","text":f"Se requiere autenticación<br/>para el usuario: <b>{user}</b>",
+               "pass_label":"Contraseña:","wrong":"Contraseña incorrecta, inténtelo de nuevo","cancel":"Cancelar","ok":"Autenticar"},
+        "ca": {"title":"Autenticació","text":f"Es requereix autenticació<br/>per a l'usuari: <b>{user}</b>",
+               "pass_label":"Contrasenya:","wrong":"Contrasenya incorrecta, torneu-ho a provar","cancel":"Cancel·lar","ok":"Autenticar"},
+        "fr": {"title":"Authentification","text":f"Authentification requise<br/>pour l'utilisateur: <b>{user}</b>",
+               "pass_label":"Mot de passe:","wrong":"Mot de passe incorrect, veuillez réessayer","cancel":"Annuler","ok":"Authentifier"},
+        "it": {"title":"Autenticazione","text":f"Autenticazione richiesta<br/>per l'utente: <b>{user}</b>",
+               "pass_label":"Password:","wrong":"Password errata, riprovare","cancel":"Annulla","ok":"Autentica"},
+        "hu": {"title":"Hitelesítés","text":f"Hitelesítés szükséges<br/>a felhasználó számára: <b>{user}</b>",
+               "pass_label":"Jelszó:","wrong":"Hibás jelszó, próbálja újra","cancel":"Mégse","ok":"Hitelesítés"},
+        "ja": {"title":"認証","text":f"ユーザーの認証が必要です: <b>{user}</b>",
+               "pass_label":"パスワード:","wrong":"パスワードが間違っています。再試行してください","cancel":"キャンセル","ok":"認証"},
+        "ru": {"title":"Аутентификация","text":f"Требуется аутентификация<br/>для пользователя: <b>{user}</b>",
+               "pass_label":"Пароль:","wrong":"Неверный пароль, попробуйте снова","cancel":"Отмена","ok":"Аутентификация"},
+        "zh": {"title":"身份验证","text":f"需要身份验证<br/>对于用户: <b>{user}</b>",
+               "pass_label":"密码:","wrong":"密码错误，请重试","cancel":"取消","ok":"验证"},
+        "pt": {"title":"Autenticação","text":f"É necessária autenticação<br/>para o usuário: <b>{user}</b>",
+               "pass_label":"Senha:","wrong":"Senha incorreta, tente novamente","cancel":"Cancelar","ok":"OK"},
+        "en": {"title":"Authentication","text":f"Authentication needed for user: <b>{user}</b>",
+               "pass_label":"Password:","wrong":"Wrong password, retry","cancel":"Cancel","ok":"Authenticate"},
+    }
+
+    for k in tr:
+        if lang.startswith(k):
+            return tr[k]
+    return tr["en"]
+
+
+def sudo_check(password: str) -> bool:
+
+    p = subprocess.run(
+        ["sudo", "-S", "-k", "-v"],
+        input=(password + "\n").encode("utf-8"),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    return p.returncode == 0
+
+
+def sudo_run_detach(password: str, cmd: list[str]) -> int:
+
+    p = subprocess.Popen(
+        ["sudo", "-S", "-E"] + cmd,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+        start_new_session=True,
+        close_fds=True,
+    )
+    p.stdin.write((password + "\n").encode("utf-8"))
+    p.stdin.flush()
+    p.stdin.close()
+    return 0
+
+
+def sudo_run_wait(password: str, cmd: list[str]) -> int:
+    p = subprocess.run(
+        ["sudo", "-S", "-E"] + cmd,
+        input=(password + "\n").encode("utf-8"),
+    )
+    return p.returncode
+
+
+def main():
+    if len(sys.argv) < 2:
+        print("Uso: gksu [--wait] comando [args...]", file=sys.stderr)
+        return 1
+
+    wait = False
+    args = sys.argv[1:]
+    if args and args[0] == "--wait":
+        wait = True
+        args = args[1:]
+
+    if not args:
+        return 1
+
+    Gtk.init([])
+    tr = get_translations()
+
+
+    for _ in range(2):
+        dlg = PasswordDialog(tr["title"], tr["text"], tr["pass_label"])
+        pw = dlg.run()
+        if pw is None:
+            return 1
+        if sudo_check(pw):
+            return sudo_run_wait(pw, args) if wait else sudo_run_detach(pw, args)
+
+
+    md = Gtk.MessageDialog(
+        transient_for=None,
+        flags=0,
+        message_type=Gtk.MessageType.ERROR,
+        buttons=Gtk.ButtonsType.OK,
+        text=tr["wrong"],
+    )
+    md.run()
+    md.destroy()
+    return 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

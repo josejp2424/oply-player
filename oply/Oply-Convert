@@ -1,0 +1,1068 @@
+#!/usr/bin/env python3
+# Oply-Convert - Estilo GNOME/Celluloid
+# Autor: josejp2424
+# Versión: 2.1 (GTK3)
+# License: GPL-3.0
+# ====================================================================
+# GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
+# Copyright (C) 2025 josejp2424
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+#
+# Author: josejp2424
+# Proyecto: Oply
+# ====================================================================
+
+import gi
+gi.require_version('Gtk', '3.0')
+from gi.repository import Gtk, Gdk, GLib, GdkPixbuf, Gio
+import os
+import sys
+import shutil
+import subprocess
+import locale
+import threading
+from pathlib import Path
+import platform
+import json
+import socket
+import urllib.request
+import urllib.error
+
+# --- Configuración ---
+HOME = Path.home()
+DOWNLOAD_DIR = HOME / "OplyConvert"
+TEMP_DIR = DOWNLOAD_DIR / "tmp"
+CONFIG_DIR = HOME / ".config" / "oply"
+CONFIG_FILE = CONFIG_DIR / "config.json"
+LANG_FILE = CONFIG_DIR / "language.json"
+
+# Rutas multiplataforma
+if platform.system() == "Windows":
+    ICON_PATH = "C:\\Oply\\icons\\Oply.png"
+    GKSU_PATH = "C:\\Oply\\gksu\\gksu.exe"
+    YT_DLP_PATH = "C:\\Oply\\bin\\yt-dlp.exe"
+    OPLY_PATH = "C:\\Oply\\Oply.py"
+    OPLY_VIDEO_PATH = "C:\\Oply\\Oply-Video.py"
+else:
+    ICON_PATH = "/usr/local/Oply/icons/oply.svg"
+    GKSU_PATH = "/usr/local/Oply/gksu"
+    YT_DLP_PATH = "/usr/local/Oply/bin/yt-dlp"
+    OPLY_PATH = "/usr/local/Oply/Oply.py"
+    OPLY_VIDEO_PATH = "/usr/local/Oply/Oply-Video.py"
+
+LANGUAGES = {
+    "en": {
+        "title": "Oply Convert",
+        "url_prompt": "Video URL:",
+        "format": "Format:",
+        "download": "Convert",
+        "update": "Update yt-dlp",
+        "subtitle": "Ready to convert",
+        "error": "No URL provided!",
+        "install_yt": "yt-dlp not installed",
+        "need_yt": "yt-dlp is required to use this application.",
+        "need_ffmpeg": "ffmpeg is required for conversion.",
+        "destination": "Files will be saved in:",
+        "installing": "Installing yt-dlp...",
+        "updated": "yt-dlp updated.",
+        "install_failed": "Failed to install yt-dlp",
+        "update_failed": "Failed to update yt-dlp",
+        "done_msg": "✔️ File saved at: ",
+        "process_output": "Process output:\n",
+        "new_process": "New process started",
+        "updating": "Updating",
+        "invalid_format": "Invalid format",
+        "process_failed": "Process failed",
+        "install_now": "Install now?",
+        "play_now": "Play now in Oply (Audio)?",
+        "play_video": "Open with Oply-Video",
+        "add_to_playlist": "Add to Oply (Audio) playlist",
+        "just_save": "Just save",
+        "file_action": "What do you want to do with the file?",
+        "checking_version": "Checking latest version...",
+        "downloading": "Downloading yt-dlp_linux...",
+        "installing_file": "Installing to /usr/local/Oply/bin/yt-dlp...",
+        "setting_permissions": "Setting permissions...",
+        "download_complete": "Download complete!",
+        "github_error": "Error connecting to GitHub"
+    },
+    "es": {
+        "title": "Oply Convert",
+        "url_prompt": "URL del video:",
+        "format": "Formato:",
+        "download": "Convertir",
+        "update": "Actualizar yt-dlp",
+        "subtitle": "Listo para convertir",
+        "error": "¡No se proporcionó URL!",
+        "install_yt": "yt-dlp no instalado",
+        "need_yt": "Se requiere yt-dlp para usar esta aplicación.",
+        "need_ffmpeg": "Se requiere ffmpeg para conversión.",
+        "destination": "Archivos se guardarán en:",
+        "installing": "Instalando yt-dlp...",
+        "updated": "yt-dlp actualizado.",
+        "install_failed": "Falló instalación de yt-dlp",
+        "update_failed": "Falló actualización de yt-dlp",
+        "done_msg": "✔️ Archivo guardado en: ",
+        "process_output": "Salida del proceso:\n",
+        "new_process": "Nuevo proceso iniciado",
+        "updating": "Actualizando",
+        "invalid_format": "Formato inválido",
+        "process_failed": "Proceso fallido",
+        "install_now": "¿Instalar ahora?",
+        "play_now": "¿Reproducir ahora en Oply (Audio)?",
+        "play_video": "Abrir con Oply-Video",
+        "add_to_playlist": "Añadir a lista de Oply (Audio)",
+        "just_save": "Solo guardar",
+        "file_action": "¿Qué quieres hacer con el archivo?",
+        "checking_version": "Verificando última versión...",
+        "downloading": "Descargando yt-dlp_linux...",
+        "installing_file": "Instalando en /usr/local/Oply/bin/yt-dlp...",
+        "setting_permissions": "Configurando permisos...",
+        "download_complete": "¡Descarga completada!",
+        "github_error": "Error al conectar con GitHub"
+    },
+    "ar": {
+        "title": "أوبلي تحويل",
+        "url_prompt": "رابط الفيديو:",
+        "format": "الصيغة:",
+        "download": "تحويل",
+        "update": "تحديث yt-dlp",
+        "subtitle": "جاهز للتحويل",
+        "error": "لم يتم توفير رابط!",
+        "install_yt": "yt-dlp غير مثبت",
+        "need_yt": "yt-dlp مطلوب لاستخدام هذا التطبيق.",
+        "need_ffmpeg": "ffmpeg مطلوب للتحويل.",
+        "destination": "سيتم حفظ الملفات في:",
+        "installing": "جاري تثبيت yt-dlp...",
+        "updated": "تم تحديث yt-dlp.",
+        "install_failed": "فشل تثبيت yt-dlp",
+        "update_failed": "فشل تحديث yt-dlp",
+        "done_msg": "✔️ تم حفظ الملف في: ",
+        "process_output": "مخرجات العملية:\n",
+        "new_process": "بدأت عملية جديدة",
+        "updating": "جاري التحديث",
+        "invalid_format": "صيغة غير صالحة",
+        "process_failed": "فشلت العملية",
+        "install_now": "تثبيت الآن؟",
+        "play_now": "تشغيل الآن في أوبلي (صوت)؟",
+        "play_video": "فتح مع أوبلي-فيديو",
+        "add_to_playlist": "إضافة إلى قائمة أوبلي (صوت)",
+        "just_save": "حفظ فقط",
+        "file_action": "ماذا تريد أن تفعل بالملف؟",
+        "checking_version": "جاري التحقق من آخر إصدار...",
+        "downloading": "جاري تحميل yt-dlp_linux...",
+        "installing_file": "جاري التثبيت في /usr/local/Oply/bin/yt-dlp...",
+        "setting_permissions": "جاري ضبط الأذونات...",
+        "download_complete": "اكتمل التحميل!",
+        "github_error": "خطأ في الاتصال بـ GitHub"
+    },
+    "ca": {
+        "title": "Oply Convertir",
+        "url_prompt": "URL del vídeo:",
+        "format": "Format:",
+        "download": "Convertir",
+        "update": "Actualitzar yt-dlp",
+        "subtitle": "Llest per convertir",
+        "error": "No s'ha proporcionat URL!",
+        "install_yt": "yt-dlp no instal·lat",
+        "need_yt": "Es necessita yt-dlp per utilitzar aquesta aplicació.",
+        "need_ffmpeg": "Es necessita ffmpeg per a la conversió.",
+        "destination": "Els fitxers es desaran a:",
+        "installing": "Instal·lant yt-dlp...",
+        "updated": "yt-dlp actualitzat.",
+        "install_failed": "Ha fallat la instal·lació de yt-dlp",
+        "update_failed": "Ha fallat l'actualització de yt-dlp",
+        "done_msg": "✔️ Fitxer desat a: ",
+        "process_output": "Sortida del procés:\n",
+        "new_process": "Nou procés iniciat",
+        "updating": "Actualitzant",
+        "invalid_format": "Format invàlid",
+        "process_failed": "Procés fallit",
+        "install_now": "Instal·lar ara?",
+        "play_now": "Reproduir ara a Oply (Àudio)?",
+        "play_video": "Obrir amb Oply-Vídeo",
+        "add_to_playlist": "Afegir a la llista d'Oply (Àudio)",
+        "just_save": "Només desar",
+        "file_action": "Què vols fer amb el fitxer?",
+        "checking_version": "Comprovant l'última versió...",
+        "downloading": "Descarregant yt-dlp_linux...",
+        "installing_file": "Instal·lant a /usr/local/Oply/bin/yt-dlp...",
+        "setting_permissions": "Configurant permisos...",
+        "download_complete": "Descàrrega completa!",
+        "github_error": "Error en connectar amb GitHub"
+    },
+    "fr": {
+        "title": "Oply Convertir",
+        "url_prompt": "URL de la vidéo:",
+        "format": "Format:",
+        "download": "Convertir",
+        "update": "Mettre à jour yt-dlp",
+        "subtitle": "Prêt à convertir",
+        "error": "Aucune URL fournie!",
+        "install_yt": "yt-dlp non installé",
+        "need_yt": "yt-dlp est requis pour utiliser cette application.",
+        "need_ffmpeg": "ffmpeg est requis pour la conversion.",
+        "destination": "Les fichiers seront enregistrés dans:",
+        "installing": "Installation de yt-dlp...",
+        "updated": "yt-dlp mis à jour.",
+        "install_failed": "Échec de l'installation de yt-dlp",
+        "update_failed": "Échec de la mise à jour de yt-dlp",
+        "done_msg": "✔️ Fichier enregistré à: ",
+        "process_output": "Sortie du processus:\n",
+        "new_process": "Nouveau processus démarré",
+        "updating": "Mise à jour",
+        "invalid_format": "Format invalide",
+        "process_failed": "Processus échoué",
+        "install_now": "Installer maintenant?",
+        "play_now": "Jouer maintenant dans Oply (Audio)?",
+        "play_video": "Ouvrir avec Oply-Vidéo",
+        "add_to_playlist": "Ajouter à la liste Oply (Audio)",
+        "just_save": "Enregistrer seulement",
+        "file_action": "Que voulez-vous faire avec le fichier?",
+        "checking_version": "Vérification de la dernière version...",
+        "downloading": "Téléchargement de yt-dlp_linux...",
+        "installing_file": "Installation dans /usr/local/Oply/bin/yt-dlp...",
+        "setting_permissions": "Configuration des permissions...",
+        "download_complete": "Téléchargement terminé!",
+        "github_error": "Erreur de connexion à GitHub"
+    },
+    "it": {
+        "title": "Oply Converti",
+        "url_prompt": "URL del video:",
+        "format": "Formato:",
+        "download": "Converti",
+        "update": "Aggiorna yt-dlp",
+        "subtitle": "Pronto per convertire",
+        "error": "Nessun URL fornito!",
+        "install_yt": "yt-dlp non installato",
+        "need_yt": "yt-dlp è necessario per utilizzare questa applicazione.",
+        "need_ffmpeg": "ffmpeg è necessario per la conversione.",
+        "destination": "I file verranno salvati in:",
+        "installing": "Installazione di yt-dlp...",
+        "updated": "yt-dlp aggiornato.",
+        "install_failed": "Installazione di yt-dlp fallita",
+        "update_failed": "Aggiornamento di yt-dlp fallito",
+        "done_msg": "✔️ File salvato in: ",
+        "process_output": "Output del processo:\n",
+        "new_process": "Nuovo processo avviato",
+        "updating": "Aggiornamento",
+        "invalid_format": "Formato non valido",
+        "process_failed": "Processo fallito",
+        "install_now": "Installare ora?",
+        "play_now": "Riprodurre ora in Oply (Audio)?",
+        "play_video": "Apri con Oply-Video",
+        "add_to_playlist": "Aggiungi alla playlist Oply (Audio)",
+        "just_save": "Solo salva",
+        "file_action": "Cosa vuoi fare con il file?",
+        "checking_version": "Controllo ultima versione...",
+        "downloading": "Download di yt-dlp_linux...",
+        "installing_file": "Installazione in /usr/local/Oply/bin/yt-dlp...",
+        "setting_permissions": "Impostazione permessi...",
+        "download_complete": "Download completato!",
+        "github_error": "Errore di connessione a GitHub"
+    },
+    "pt": {
+        "title": "Oply Converter",
+        "url_prompt": "URL do vídeo:",
+        "format": "Formato:",
+        "download": "Converter",
+        "update": "Atualizar yt-dlp",
+        "subtitle": "Pronto para converter",
+        "error": "Nenhum URL fornecido!",
+        "install_yt": "yt-dlp não instalado",
+        "need_yt": "yt-dlp é necessário para usar esta aplicação.",
+        "need_ffmpeg": "ffmpeg é necessário para conversão.",
+        "destination": "Arquivos serão salvos em:",
+        "installing": "Instalando yt-dlp...",
+        "updated": "yt-dlp atualizado.",
+        "install_failed": "Falha na instalação do yt-dlp",
+        "update_failed": "Falha na atualização do yt-dlp",
+        "done_msg": "✔️ Arquivo salvo em: ",
+        "process_output": "Saída do processo:\n",
+        "new_process": "Novo processo iniciado",
+        "updating": "Atualizando",
+        "invalid_format": "Formato inválido",
+        "process_failed": "Processo falhou",
+        "install_now": "Instalar agora?",
+        "play_now": "Reproduzir agora no Oply (Áudio)?",
+        "play_video": "Abrir com Oply-Vídeo",
+        "add_to_playlist": "Adicionar à lista Oply (Áudio)",
+        "just_save": "Apenas salvar",
+        "file_action": "O que você quer fazer com o arquivo?",
+        "checking_version": "Verificando última versão...",
+        "downloading": "Baixando yt-dlp_linux...",
+        "installing_file": "Instalando em /usr/local/Oply/bin/yt-dlp...",
+        "setting_permissions": "Configurando permissões...",
+        "download_complete": "Download completo!",
+        "github_error": "Erro ao conectar ao GitHub"
+    },
+    "hu": {
+        "title": "Oply Konvertálás",
+        "url_prompt": "Videó URL:",
+        "format": "Formátum:",
+        "download": "Konvertálás",
+        "update": "yt-dlp frissítése",
+        "subtitle": "Készen áll a konvertálásra",
+        "error": "Nincs megadva URL!",
+        "install_yt": "yt-dlp nincs telepítve",
+        "need_yt": "yt-dlp szükséges az alkalmazás használatához.",
+        "need_ffmpeg": "ffmpeg szükséges a konvertáláshoz.",
+        "destination": "Fájlok mentési helye:",
+        "installing": "yt-dlp telepítése...",
+        "updated": "yt-dlp frissítve.",
+        "install_failed": "yt-dlp telepítése sikertelen",
+        "update_failed": "yt-dlp frissítése sikertelen",
+        "done_msg": "✔️ Fájl elmentve: ",
+        "process_output": "Folyamat kimenete:\n",
+        "new_process": "Új folyamat indult",
+        "updating": "Frissítés",
+        "invalid_format": "Érvénytelen formátum",
+        "process_failed": "A folyamat sikertelen",
+        "install_now": "Telepítés most?",
+        "play_now": "Lejátszás most az Oply-ban (Hang)?",
+        "play_video": "Megnyitás Oply-Videóval",
+        "add_to_playlist": "Hozzáadás az Oply (Hang) lejátszási listához",
+        "just_save": "Csak mentés",
+        "file_action": "Mit szeretnél tenni a fájllal?",
+        "checking_version": "Legújabb verzió ellenőrzése...",
+        "downloading": "yt-dlp_linux letöltése...",
+        "installing_file": "Telepítés ide: /usr/local/Oply/bin/yt-dlp...",
+        "setting_permissions": "Jogosultságok beállítása...",
+        "download_complete": "Letöltés kész!",
+        "github_error": "Hiba a GitHub kapcsolódásakor"
+    },
+    "ru": {
+        "title": "Oply Конвертер",
+        "url_prompt": "URL видео:",
+        "format": "Формат:",
+        "download": "Конвертировать",
+        "update": "Обновить yt-dlp",
+        "subtitle": "Готов к конвертации",
+        "error": "URL не указан!",
+        "install_yt": "yt-dlp не установлен",
+        "need_yt": "yt-dlp необходим для использования этого приложения.",
+        "need_ffmpeg": "ffmpeg необходим для конвертации.",
+        "destination": "Файлы будут сохранены в:",
+        "installing": "Установка yt-dlp...",
+        "updated": "yt-dlp обновлен.",
+        "install_failed": "Не удалось установить yt-dlp",
+        "update_failed": "Не удалось обновить yt-dlp",
+        "done_msg": "✔️ Файл сохранен в: ",
+        "process_output": "Вывод процесса:\n",
+        "new_process": "Запущен новый процесс",
+        "updating": "Обновление",
+        "invalid_format": "Неверный формат",
+        "process_failed": "Процесс не удался",
+        "install_now": "Установить сейчас?",
+        "play_now": "Воспроизвести сейчас в Oply (Аудио)?",
+        "play_video": "Открыть с Oply-Видео",
+        "add_to_playlist": "Добавить в плейлист Oply (Аудио)",
+        "just_save": "Просто сохранить",
+        "file_action": "Что вы хотите сделать с файлом?",
+        "checking_version": "Проверка последней версии...",
+        "downloading": "Загрузка yt-dlp_linux...",
+        "installing_file": "Установка в /usr/local/Oply/bin/yt-dlp...",
+        "setting_permissions": "Настройка разрешений...",
+        "download_complete": "Загрузка завершена!",
+        "github_error": "Ошибка подключения к GitHub"
+    },
+    "jp": {
+        "title": "Oply 変換",
+        "url_prompt": "動画URL:",
+        "format": "フォーマット:",
+        "download": "変換",
+        "update": "yt-dlpを更新",
+        "subtitle": "変換準備完了",
+        "error": "URLが入力されていません！",
+        "install_yt": "yt-dlpがインストールされていません",
+        "need_yt": "このアプリケーションを使用するにはyt-dlpが必要です。",
+        "need_ffmpeg": "変換にはffmpegが必要です。",
+        "destination": "ファイルの保存先:",
+        "installing": "yt-dlpをインストール中...",
+        "updated": "yt-dlpを更新しました。",
+        "install_failed": "yt-dlpのインストールに失敗しました",
+        "update_failed": "yt-dlpの更新に失敗しました",
+        "done_msg": "✔️ ファイルを保存しました: ",
+        "process_output": "プロセス出力:\n",
+        "new_process": "新しいプロセスを開始しました",
+        "updating": "更新中",
+        "invalid_format": "無効なフォーマット",
+        "process_failed": "プロセスに失敗しました",
+        "install_now": "今すぐインストールしますか？",
+        "play_now": "Oply（オーディオ）で再生しますか？",
+        "play_video": "Oply-ビデオで開く",
+        "add_to_playlist": "Oply（オーディオ）プレイリストに追加",
+        "just_save": "保存のみ",
+        "file_action": "ファイルをどうしますか？",
+        "checking_version": "最新バージョンを確認中...",
+        "downloading": "yt-dlp_linuxをダウンロード中...",
+        "installing_file": "/usr/local/Oply/bin/yt-dlpにインストール中...",
+        "setting_permissions": "権限を設定中...",
+        "download_complete": "ダウンロード完了！",
+        "github_error": "GitHubへの接続エラー"
+    },
+    "zh": {
+        "title": "Oply 转换",
+        "url_prompt": "视频网址:",
+        "format": "格式:",
+        "download": "转换",
+        "update": "更新 yt-dlp",
+        "subtitle": "准备转换",
+        "error": "未提供网址！",
+        "install_yt": "yt-dlp 未安装",
+        "need_yt": "使用此应用程序需要 yt-dlp。",
+        "need_ffmpeg": "转换需要 ffmpeg。",
+        "destination": "文件将保存在：",
+        "installing": "正在安装 yt-dlp...",
+        "updated": "yt-dlp 已更新。",
+        "install_failed": "yt-dlp 安装失败",
+        "update_failed": "yt-dlp 更新失败",
+        "done_msg": "✔️ 文件已保存至：",
+        "process_output": "进程输出：\n",
+        "new_process": "新进程已启动",
+        "updating": "正在更新",
+        "invalid_format": "无效格式",
+        "process_failed": "进程失败",
+        "install_now": "立即安装？",
+        "play_now": "立即在 Oply（音频）中播放？",
+        "play_video": "用 Oply-视频 打开",
+        "add_to_playlist": "添加到 Oply（音频）播放列表",
+        "just_save": "仅保存",
+        "file_action": "你想对文件做什么？",
+        "checking_version": "正在检查最新版本...",
+        "downloading": "正在下载 yt-dlp_linux...",
+        "installing_file": "正在安装到 /usr/local/Oply/bin/yt-dlp...",
+        "setting_permissions": "正在设置权限...",
+        "download_complete": "下载完成！",
+        "github_error": "连接到 GitHub 时出错"
+    }
+}
+
+def set_language(lang_code=None):
+    if not lang_code:
+        try:
+            sys_lang = locale.getdefaultlocale()[0][:2]
+            lang_code = sys_lang if sys_lang in LANGUAGES else 'en'
+        except:
+            lang_code = 'en'
+    
+    try:
+        os.makedirs(CONFIG_DIR, exist_ok=True)
+        with open(LANG_FILE, 'w') as f:
+            json.dump({"language": lang_code}, f)
+    except Exception as e:
+        print(f"Error saving language: {e}")
+    
+    return LANGUAGES.get(lang_code, LANGUAGES['en'])
+
+def load_language():
+    try:
+        if LANG_FILE.exists():
+            with open(LANG_FILE, 'r') as f:
+                config = json.load(f)
+                return set_language(config.get("language"))
+    except Exception as e:
+        print(f"Error loading language: {e}")
+    
+    return set_language()
+
+def get_latest_ytdlp_url():
+    """Obtiene la URL de descarga de la última versión de yt-dlp_linux desde GitHub"""
+    api_url = "https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest"
+    
+    try:
+        req = urllib.request.Request(api_url)
+        req.add_header('User-Agent', 'Oply-Convert')
+        
+        with urllib.request.urlopen(req, timeout=10) as response:
+            data = json.loads(response.read().decode())
+            
+
+        for asset in data.get('assets', []):
+            if asset['name'] == 'yt-dlp_linux':
+                return asset['browser_download_url'], data.get('tag_name', 'latest')
+        
+
+        return "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux", "latest"
+    
+    except Exception as e:
+        print(f"Error getting latest version: {e}")
+        return "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp_linux", "latest"
+
+def download_with_progress(url, dest_path, progress_callback=None):
+    """Descarga un archivo mostrando el progreso"""
+    req = urllib.request.Request(url)
+    req.add_header('User-Agent', 'Oply-Convert')
+    
+    with urllib.request.urlopen(req, timeout=30) as response:
+        total_size = int(response.headers.get('Content-Length', 0))
+        downloaded = 0
+        block_size = 8192
+        
+        with open(dest_path, 'wb') as f:
+            while True:
+                chunk = response.read(block_size)
+                if not chunk:
+                    break
+                
+                f.write(chunk)
+                downloaded += len(chunk)
+                
+                if progress_callback and total_size > 0:
+                    progress = (downloaded / total_size) * 100
+                    progress_callback(progress, downloaded, total_size)
+
+def check_installation():
+    TEXT = load_language()
+    
+    if not Path(YT_DLP_PATH).exists() and not shutil.which("yt-dlp"):
+        dialog = Gtk.MessageDialog(
+            message_type=Gtk.MessageType.QUESTION,
+            buttons=Gtk.ButtonsType.YES_NO,
+            text=TEXT["install_yt"]
+        )
+        dialog.format_secondary_text(TEXT["need_yt"] + "\n" + TEXT.get("install_now", "Install now?"))
+        response = dialog.run()
+        dialog.destroy()
+        
+        if response != Gtk.ResponseType.YES:
+            sys.exit(0)
+        
+
+        progress_window = Gtk.Window(title=TEXT["installing"])
+        progress_window.set_default_size(500, 200)
+        progress_window.set_position(Gtk.WindowPosition.CENTER)
+        
+        vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=10)
+        vbox.set_margin_top(20)
+        vbox.set_margin_bottom(20)
+        vbox.set_margin_start(20)
+        vbox.set_margin_end(20)
+        progress_window.add(vbox)
+        
+        label = Gtk.Label(label=TEXT["checking_version"])
+        vbox.pack_start(label, False, False, 0)
+        
+        progress_bar = Gtk.ProgressBar()
+        vbox.pack_start(progress_bar, False, False, 0)
+        
+        text_view = Gtk.TextView()
+        text_view.set_editable(False)
+        text_view.set_wrap_mode(Gtk.WrapMode.WORD)
+        text_view.set_monospace(True)
+        buffer = text_view.get_buffer()
+        
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        scrolled.add(text_view)
+        vbox.pack_start(scrolled, True, True, 0)
+        
+        progress_window.show_all()
+        
+        def append_log(text):
+            GLib.idle_add(lambda: buffer.insert(buffer.get_end_iter(), text))
+        
+        def update_progress(fraction, text=None):
+            GLib.idle_add(lambda: progress_bar.set_fraction(fraction))
+            if text:
+                GLib.idle_add(lambda: label.set_text(text))
+        
+        def worker():
+            try:
+                install_yt_dlp_with_progress(TEXT, append_log, update_progress)
+                GLib.idle_add(progress_window.destroy)
+            except Exception as e:
+                append_log(f"\n{TEXT['install_failed']}: {str(e)}\n")
+                GLib.timeout_add(2000, progress_window.destroy)
+        
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+        
+
+        while progress_window.get_visible():
+            Gtk.main_iteration()
+    
+    if not shutil.which("ffmpeg"):
+        dialog = Gtk.MessageDialog(
+            message_type=Gtk.MessageType.ERROR,
+            buttons=Gtk.ButtonsType.OK,
+            text=TEXT["title"]
+        )
+        dialog.format_secondary_text(TEXT["need_ffmpeg"])
+        dialog.run()
+        dialog.destroy()
+        sys.exit(1)
+
+def install_yt_dlp_with_progress(TEXT, log_callback, progress_callback):
+    """Instala yt-dlp con progreso visible"""
+    try:
+        log_callback(f"{TEXT['checking_version']}\n")
+        progress_callback(0.1, TEXT['checking_version'])
+        
+        download_url, version = get_latest_ytdlp_url()
+        log_callback(f"Latest version: {version}\n")
+        log_callback(f"URL: {download_url}\n\n")
+        
+        if platform.system() == "Windows":
+            download_path = YT_DLP_PATH
+            os.makedirs(os.path.dirname(download_path), exist_ok=True)
+            
+            log_callback(f"{TEXT['downloading']}\n")
+            progress_callback(0.2, TEXT['downloading'])
+            
+            def progress_update(pct, down, total):
+                mb_down = down / (1024 * 1024)
+                mb_total = total / (1024 * 1024)
+                log_callback(f"\rDownloaded: {mb_down:.2f} MB / {mb_total:.2f} MB ({pct:.1f}%)")
+                progress_callback(0.2 + (pct / 100 * 0.7))
+            
+            download_with_progress(download_url, download_path, progress_update)
+            log_callback(f"\n{TEXT['download_complete']}\n")
+            progress_callback(1.0, TEXT['updated'])
+        else:
+
+            temp_file = "/tmp/yt-dlp_linux"
+            
+            log_callback(f"{TEXT['downloading']}\n")
+            progress_callback(0.2, TEXT['downloading'])
+            
+            def progress_update(pct, down, total):
+                mb_down = down / (1024 * 1024)
+                mb_total = total / (1024 * 1024)
+                log_callback(f"\rDescargado: {mb_down:.2f} MB / {mb_total:.2f} MB ({pct:.1f}%)\n")
+                progress_callback(0.2 + (pct / 100 * 0.6))
+            
+            download_with_progress(download_url, temp_file, progress_update)
+            log_callback(f"\n{TEXT['download_complete']}\n")
+            
+
+            log_callback(f"{TEXT['installing_file']}\n")
+            progress_callback(0.85, TEXT['installing_file'])
+            
+            os.makedirs(os.path.dirname(YT_DLP_PATH), exist_ok=True)
+            
+            cmd = [
+                GKSU_PATH,
+                "bash",
+                "-c",
+                f"mv {temp_file} {YT_DLP_PATH}"
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                log_callback(f"Error moving file: {result.stderr}\n")
+                raise Exception(result.stderr)
+            
+            log_callback(f"{TEXT['setting_permissions']}\n")
+            progress_callback(0.95, TEXT['setting_permissions'])
+            
+
+            cmd = [
+                GKSU_PATH,
+                "bash",
+                "-c",
+                f"chmod a+rx {YT_DLP_PATH}"
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                log_callback(f"Error setting permissions: {result.stderr}\n")
+                raise Exception(result.stderr)
+            
+            log_callback(f"\n✔️ {TEXT['updated']}\n")
+            progress_callback(1.0, TEXT['updated'])
+        
+    except Exception as e:
+        raise Exception(f"{TEXT['install_failed']}: {str(e)}")
+
+def update_yt_dlp_with_progress(TEXT, log_callback, progress_callback):
+    """Actualiza yt-dlp mostrando el progreso en la GUI"""
+    try:
+        log_callback(f"{TEXT['checking_version']}\n")
+        progress_callback(0.1)
+        
+        download_url, version = get_latest_ytdlp_url()
+        log_callback(f"Última versión: {version}\n")
+        log_callback(f"URL: {download_url}\n\n")
+        
+        if platform.system() == "Windows":
+            log_callback(f"{TEXT['downloading']}\n")
+            progress_callback(0.2)
+            
+            def progress_update(pct, down, total):
+                mb_down = down / (1024 * 1024)
+                mb_total = total / (1024 * 1024)
+                log_callback(f"\rDescargado: {mb_down:.2f} MB / {mb_total:.2f} MB ({pct:.1f}%)")
+                progress_callback(0.2 + (pct / 100 * 0.7))
+            
+            download_with_progress(download_url, YT_DLP_PATH, progress_update)
+            log_callback(f"\n{TEXT['download_complete']}\n")
+            progress_callback(1.0)
+        else:
+            temp_file = "/tmp/yt-dlp_linux"
+            
+            log_callback(f"{TEXT['downloading']}\n")
+            progress_callback(0.2)
+            
+            def progress_update(pct, down, total):
+                mb_down = down / (1024 * 1024)
+                mb_total = total / (1024 * 1024)
+                log_callback(f"\rDescargado: {mb_down:.2f} MB / {mb_total:.2f} MB ({pct:.1f}%)\n")
+                progress_callback(0.2 + (pct / 100 * 0.6))
+            
+            download_with_progress(download_url, temp_file, progress_update)
+            log_callback(f"\n{TEXT['download_complete']}\n")
+            
+            log_callback(f"{TEXT['installing_file']}\n")
+            progress_callback(0.85)
+            
+            cmd = [
+                GKSU_PATH,
+                "bash",
+                "-c",
+                f"mv {temp_file} {YT_DLP_PATH} && chmod a+rx {YT_DLP_PATH}"
+            ]
+            
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            if result.returncode != 0:
+                log_callback(f"Error: {result.stderr}\n")
+                raise Exception(result.stderr)
+            
+            log_callback(f"\n✔️ {TEXT['updated']}\n")
+            progress_callback(1.0)
+        
+    except Exception as e:
+        raise Exception(f"{TEXT['update_failed']}: {str(e)}")
+
+def clean_temp(keep_file=None):
+    for item in TEMP_DIR.iterdir():
+        if keep_file and item == keep_file:
+            try:
+                shutil.move(str(item), str(DOWNLOAD_DIR / item.name))
+            except:
+                pass
+        else:
+            try:
+                if item.is_file():
+                    item.unlink()
+                elif item.is_dir():
+                    shutil.rmtree(item)
+            except:
+                pass
+
+def send_to_oply(file_path, action):
+    """Envía el archivo a Oply usando los argumentos correctos"""
+    if not Path(OPLY_PATH).exists():
+        return
+    
+    try:
+        if action == "ADD":
+
+            subprocess.Popen([
+                "python3",
+                OPLY_PATH,
+                "--add",
+                str(file_path)
+            ])
+        else:
+
+            subprocess.Popen([
+                "python3",
+                OPLY_PATH,
+                str(file_path)
+            ])
+    except Exception as e:
+        print(f"Error launching Oply: {e}")
+
+def play_with_oply_video(file_path):
+    if not Path(OPLY_VIDEO_PATH).exists():
+        return
+    
+    try:
+        subprocess.Popen([
+            "python3",
+            OPLY_VIDEO_PATH,
+            str(file_path)
+        ])
+    except Exception as e:
+        print(f"Error launching Oply-Video: {e}")
+
+class OplyConvert(Gtk.Window):
+    def __init__(self):
+        super().__init__(title="Oply Convert")
+        self.TEXT = load_language()
+        
+
+        self.set_default_size(800, 600)
+        self.set_position(Gtk.WindowPosition.CENTER)
+        
+
+        try:
+            if Path(ICON_PATH).exists():
+                self.set_icon_from_file(str(ICON_PATH))
+        except:
+            pass
+        
+
+        self.headerbar = Gtk.HeaderBar()
+        self.headerbar.set_show_close_button(True)
+        self.headerbar.props.title = self.TEXT["title"]
+        self.headerbar.props.subtitle = self.TEXT["subtitle"]
+        self.set_titlebar(self.headerbar)
+        
+
+        self.btn_update = Gtk.Button(label=self.TEXT["update"])
+        self.btn_update.connect("clicked", self.trigger_update)
+        self.headerbar.pack_end(self.btn_update)
+        
+
+        css_provider = Gtk.CssProvider()
+        css_provider.load_from_data(b"""
+            .dim-label {
+                opacity: 0.6;
+                font-size: 0.9em;
+            }
+        """)
+        Gtk.StyleContext.add_provider_for_screen(
+            Gdk.Screen.get_default(),
+            css_provider,
+            Gtk.STYLE_PROVIDER_PRIORITY_APPLICATION
+        )
+        
+
+        main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=15)
+        main_vbox.set_margin_top(20)
+        main_vbox.set_margin_bottom(20)
+        main_vbox.set_margin_start(20)
+        main_vbox.set_margin_end(20)
+        self.add(main_vbox)
+        
+
+        url_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        main_vbox.pack_start(url_box, False, False, 0)
+        
+        url_label = Gtk.Label(label=self.TEXT["url_prompt"])
+        url_box.pack_start(url_label, False, False, 0)
+        
+        self.url_entry = Gtk.Entry()
+        self.url_entry.set_placeholder_text("https://...")
+        self.url_entry.set_hexpand(True)
+        url_box.pack_start(self.url_entry, True, True, 0)
+        
+
+        format_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
+        main_vbox.pack_start(format_box, False, False, 0)
+        
+        format_label = Gtk.Label(label=self.TEXT["format"])
+        format_box.pack_start(format_label, False, False, 0)
+        
+        formats = ["mp3", "aac", "flac", "m4a", "opus", "ogg", "wav", "mp4", "avi", "flv", "mkv", "mov", "webm"]
+        self.format_combo = Gtk.ComboBoxText()
+        for fmt in formats:
+            self.format_combo.append_text(fmt)
+        self.format_combo.set_active(0)
+        format_box.pack_start(self.format_combo, False, False, 0)
+        
+
+        self.btn_convert = Gtk.Button(label=self.TEXT["download"])
+        self.btn_convert.get_style_context().add_class("suggested-action")
+        self.btn_convert.connect("clicked", self.start_download)
+        format_box.pack_end(self.btn_convert, False, False, 0)
+        
+
+        dest_label = Gtk.Label(label=f"{self.TEXT['destination']} {DOWNLOAD_DIR}", xalign=0)
+        dest_label.get_style_context().add_class("dim-label")
+        main_vbox.pack_start(dest_label, False, False, 0)
+        
+
+        scrolled = Gtk.ScrolledWindow()
+        scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        scrolled.set_hexpand(True)
+        scrolled.set_vexpand(True)
+        
+        self.text_view = Gtk.TextView()
+        self.text_view.set_editable(False)
+        self.text_view.set_cursor_visible(False)
+        self.text_view.set_wrap_mode(Gtk.WrapMode.WORD)
+        self.text_view.set_monospace(True)
+        self.text_buffer = self.text_view.get_buffer()
+        scrolled.add(self.text_view)
+        
+        main_vbox.pack_start(scrolled, True, True, 0)
+        
+        self.connect("destroy", Gtk.main_quit)
+        self.show_all()
+    
+    def append_text(self, text):
+        GLib.idle_add(self._append_text_idle, text)
+    
+    def _append_text_idle(self, text):
+        end_iter = self.text_buffer.get_end_iter()
+        self.text_buffer.insert(end_iter, text)
+        
+
+        mark = self.text_buffer.create_mark(None, end_iter, False)
+        self.text_view.scroll_to_mark(mark, 0.0, True, 0.0, 1.0)
+        return False
+    
+    def set_buttons_sensitive(self, sensitive):
+        GLib.idle_add(self._set_buttons_sensitive_idle, sensitive)
+    
+    def _set_buttons_sensitive_idle(self, sensitive):
+        self.btn_convert.set_sensitive(sensitive)
+        self.btn_update.set_sensitive(sensitive)
+        return False
+    
+    def start_download(self, button):
+        url = self.url_entry.get_text().strip()
+        fmt = self.format_combo.get_active_text()
+        
+        if not url:
+            dialog = Gtk.MessageDialog(
+                transient_for=self,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.OK,
+                text=self.TEXT["error"]
+            )
+            dialog.run()
+            dialog.destroy()
+            return
+        
+        self.set_buttons_sensitive(False)
+        self.headerbar.props.subtitle = "Converting..."
+        self.append_text(f"\n--- {self.TEXT.get('new_process', 'New process started')} ---\n")
+        
+        thread = threading.Thread(target=self.download_worker, args=(url, fmt), daemon=True)
+        thread.start()
+    
+    def download_worker(self, url, fmt):
+        os.makedirs(TEMP_DIR, exist_ok=True)
+        os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+        
+        output_template = str(TEMP_DIR / "%(title)s.%(ext)s")
+        
+        cmd = [YT_DLP_PATH if Path(YT_DLP_PATH).exists() else "yt-dlp", "--no-playlist", "-o", output_template]
+        
+        if fmt in ["mp3", "aac", "flac", "m4a", "opus", "ogg", "wav"]:
+            cmd += ["--extract-audio", "--audio-format", fmt,
+                    "--add-metadata",
+                    "--embed-thumbnail",
+                    "--convert-thumbnails", "jpg"]
+        elif fmt in ["mp4", "avi", "flv", "mkv", "mov", "webm"]:
+            cmd += ["--merge-output-format", fmt]
+        else:
+            self.append_text(f"{self.TEXT.get('invalid_format', 'Invalid format')}: {fmt}\n")
+            self.set_buttons_sensitive(True)
+            GLib.idle_add(lambda: self.headerbar.set_subtitle(self.TEXT["subtitle"]))
+            return
+        
+        cmd.append(url)
+        
+        self.append_text(self.TEXT["process_output"] + " ".join(cmd) + "\n\n")
+        
+        try:
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True, bufsize=1)
+            
+            for line in process.stdout:
+                self.append_text(line)
+            
+            process.stdout.close()
+            process.wait()
+            
+            if process.returncode != 0:
+                self.append_text(f"\n{self.TEXT.get('error', 'Error')}: {self.TEXT.get('process_failed', 'Process failed')}\n")
+                self.set_buttons_sensitive(True)
+                GLib.idle_add(lambda: self.headerbar.set_subtitle(self.TEXT["subtitle"]))
+                return
+            
+            result = subprocess.check_output(
+                [YT_DLP_PATH if Path(YT_DLP_PATH).exists() else "yt-dlp", "-o", output_template, "--print", "after_move:filepath"] + cmd[1:]
+            ).decode().strip()
+            final_file = Path(result)
+            
+            clean_temp(final_file)
+            
+            downloaded_path = DOWNLOAD_DIR / final_file.name
+            self.append_text(f"\n{self.TEXT['done_msg']}{downloaded_path}\n")
+            
+
+            GLib.idle_add(self.ask_file_action, downloaded_path)
+            
+        except Exception as e:
+            self.append_text(f"\n{self.TEXT.get('error', 'Error')}: {e}\n")
+        
+        self.set_buttons_sensitive(True)
+        GLib.idle_add(lambda: self.headerbar.set_subtitle(self.TEXT["subtitle"]))
+    
+    def ask_file_action(self, file_path):
+        dialog = Gtk.Dialog(title=self.TEXT["title"], transient_for=self, modal=True)
+        dialog.add_button(self.TEXT["just_save"], Gtk.ResponseType.CLOSE)
+        
+
+        if file_path.suffix.lower() in ['.mp3', '.aac', '.flac', '.m4a', '.opus', '.ogg', '.wav']:
+            dialog.add_button(self.TEXT["add_to_playlist"], 2)
+            dialog.add_button(self.TEXT["play_now"], 1)
+        
+        if file_path.suffix.lower() in ['.mp4', '.avi', '.flv', '.mkv', '.mov', '.webm']:
+            dialog.add_button(self.TEXT["play_video"], 3)
+        
+        label = Gtk.Label(label=self.TEXT["file_action"])
+        label.set_margin_top(20)
+        label.set_margin_bottom(20)
+        label.set_margin_start(20)
+        label.set_margin_end(20)
+        
+        box = dialog.get_content_area()
+        box.add(label)
+        dialog.show_all()
+        
+        response = dialog.run()
+        
+        if response == 1:  
+            send_to_oply(file_path, "PLAY")
+        elif response == 2:  
+            send_to_oply(file_path, "ADD")
+        elif response == 3: 
+            play_with_oply_video(file_path)
+        
+        dialog.destroy()
+        return False
+    
+    def trigger_update(self, button):
+        self.set_buttons_sensitive(False)
+        self.append_text(f"\n--- {self.TEXT.get('updating', 'Updating')} yt-dlp ---\n")
+        
+        def progress_update(fraction):
+
+            pass
+        
+        def worker():
+            try:
+                update_yt_dlp_with_progress(self.TEXT, self.append_text, progress_update)
+            except Exception as e:
+                self.append_text(f"{self.TEXT.get('error', 'Error')}: {e}\n")
+            self.set_buttons_sensitive(True)
+        
+        thread = threading.Thread(target=worker, daemon=True)
+        thread.start()
+
+def main():
+    os.makedirs(CONFIG_DIR, exist_ok=True)
+    check_installation()
+    app = OplyConvert()
+    Gtk.main()
+
+if __name__ == "__main__":
+    main()
