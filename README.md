@@ -1,6 +1,9 @@
 # oply-player
-Music &amp; video player with YouTube audio/video downloader (yt-dlp auto-updated).
+Music & video player with YouTube audio/video downloader (yt-dlp auto-updated).
 
+<p align="center">
+  <img src="docs/screenshots/oply.png" alt="Oply GUI" width="900">
+</p>
 
 Oply Player is a GTK3 multimedia suite created by **josejp2424**. It includes a music player, a video player, and a YouTube audio/video downloader in a single, consistent interface.
 
@@ -22,6 +25,15 @@ Oply Convert downloads the latest **official** `yt-dlp_linux` release and instal
 `/usr/local/Oply/bin/yt-dlp`
 
 The install/update requires Internet access and will ask for admin permission (via the included GTK password prompt helper).
+
+## Downloading music/video (Oply Convert)
+
+1. Copy the YouTube video URL.
+2. Paste it into **Oply Convert**.
+3. Choose the output format (e.g. **mp3**, **wav**, **mp4**, **avi**, etc.).
+4. Click **Convert** to download and convert.
+
+Oply Convert uses **yt-dlp** for downloading and **FFmpeg** for conversion.
 
 ## Dependencies (Debian/Devuan)
 
@@ -66,19 +78,12 @@ This repo keeps the original Essora paths:
 
 Install:
 
-```bash
-cd /path/to/package
-```
-
-```bash
-sudo make install
-```
+1. `cd /path/to/package`
+2. `sudo make install`
 
 Uninstall:
 
-```bash
-sudo make uninstall
-```
+- `sudo make uninstall`
 
 ## Usage
 
