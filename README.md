@@ -67,6 +67,10 @@ This repo keeps the original Essora paths:
 Install:
 
 ```bash
+cd /path/to/package
+```
+
+```bash
 sudo make install
 ```
 
