@@ -10,8 +10,9 @@ Oply Player is a GTK3 multimedia suite created by **josejp2424**. It includes a 
 ## Components
 
 - **Oply**: music player (playlists, queue, basic controls).
-- **Oply Video**: video player.
+- **Oply Video**: video player (including IPTV/TV News integration in v2.2+).
 - **Oply Convert**: YouTube audio/video download + conversion (yt-dlp + FFmpeg).
+- **Oply Radio**: online radio player with favorites (v2.2+).
 
 ## Note about yt-dlp
 
@@ -47,67 +48,3 @@ sudo apt install -y \
   gir1.2-gdkpixbuf-2.0 librsvg2-common \
   mpv ffmpeg \
   sudo ca-certificates
-```
-
-Tray icon support (recommended):
-
-```bash
-sudo apt install -y gir1.2-ayatanaappindicator3-0.1 libayatana-appindicator3-1
-```
-
-Python MPV binding for **Oply Video** (recommended if available in your repo):
-
-```bash
-sudo apt install -y python3-mpv
-```
-
-If your repository does not provide `python3-mpv`, you can install the upstream binding:
-
-```bash
-python3 -m pip install --user python-mpv
-```
-
-## Install (from this repository)
-
-This repo keeps the original Essora paths:
-
-- App files: `/usr/local/Oply/`
-- Desktop entries: `/usr/share/applications/`
-- Helper tool: `/usr/local/bin/oply_status.py`
-- CLI launchers: `/usr/local/bin/oply`, `/usr/local/bin/oply-video`, `/usr/local/bin/oply-convert`
-
-Install:
-
-1. `cd /path/to/package`
-2. `sudo make install`
-
-Uninstall:
-
-- `sudo make uninstall`
-
-## Usage
-
-Launch from the application menu: **Oply**, **Oply Video**, **Oply Convert**  
-Or from terminal:
-
-```bash
-oply
-oply-video
-oply-convert
-```
-
-## Conky integration (optional)
-
-Oply exports the current playback status to:
-
-`~/.config/oply/now_playing.json`
-
-You can print it in Conky with:
-
-```bash
-oply_status.py
-```
-
-## License
-
-GPL-3.0. See headers in each source file.
