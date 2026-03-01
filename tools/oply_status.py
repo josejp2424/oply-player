@@ -9,7 +9,7 @@ import json
 import os
 import sys
 
-# Archivo donde Oply 
+# Archivo donde Oply y Oply-Radio escriben el estado
 STATE_FILE = os.path.expanduser("~/.config/oply/now_playing.json")
 
 def get_oply_status():
@@ -17,38 +17,45 @@ def get_oply_status():
     try:
         if not os.path.exists(STATE_FILE):
             return None
-            
+
         with open(STATE_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
-            
+
         if not data.get('is_playing', False):
             return None
-            
+
         return data
-    except Exception as e:
+    except Exception:
         return None
 
 def format_for_conky(data):
     """Formatea la información para mostrar en Conky"""
     if not data:
         return ""
-    
-    title = data.get('title', 'Desconocido')
+
+    title  = data.get('title', 'Desconocido')
     artist = data.get('artist', '')
-    
+    source = data.get('source', 'music')  # 'radio' o 'music'
+
     # Limitar longitud para que quepa en Conky
     if len(title) > 35:
         title = title[:32] + "..."
     if len(artist) > 35:
         artist = artist[:32] + "..."
-    
-    output = "${voffset 5}${font Roboto:size=10,weight=bold}${color2}♪ OPLY${color}${font}${hr 2}\n"
-    output += f"${{voffset 5}}${{color1}}Reproduciendo:${{color}}\n"
-    output += f"${{offset 10}}${{font Roboto Condensed:size=10}}{title}${{font}}\n"
-    
-    if artist:
-        output += f"${{offset 10}}${{font Roboto Condensed:size=8}}${{color2}}{artist}${{color}}${{font}}\n"
-    
+
+    if source == 'radio':
+        # Modo Radio
+        output  = "${voffset 5}${font Roboto:size=10,weight=bold}${color2}📻 OPLY RADIO${color}${font}${hr 2}\n"
+        output += "${voffset 5}${color1}Estación:${color}\n"
+        output += f"${{offset 10}}${{font Roboto Condensed:size=10}}{title}${{font}}\n"
+    else:
+        # Modo Música
+        output  = "${voffset 5}${font Roboto:size=10,weight=bold}${color2}♪ OPLY${color}${font}${hr 2}\n"
+        output += "${voffset 5}${color1}Reproduciendo:${color}\n"
+        output += f"${{offset 10}}${{font Roboto Condensed:size=10}}{title}${{font}}\n"
+        if artist:
+            output += f"${{offset 10}}${{font Roboto Condensed:size=8}}${{color2}}{artist}${{color}}${{font}}\n"
+
     return output
 
 if __name__ == "__main__":

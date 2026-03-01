@@ -62,6 +62,7 @@ CONFIG_DIR = os.path.join(REAL_HOME, ".config", "oply")
 LANG_FILE = os.path.join(CONFIG_DIR, "language.json")
 RADIO_DIR = os.path.join(CONFIG_DIR, "radio")
 FAVORITES_FILE = os.path.join(RADIO_DIR, "favorites.json")
+STATE_FILE = os.path.join(CONFIG_DIR, "now_playing.json")
 ICON_APP = "/usr/local/Oply/icons/radio.svg"
 
 
@@ -775,6 +776,22 @@ class OplyRadio(Gtk.Window):
     def _mpv_set(self, prop, value):
         self._mpv_send(["set_property", prop, value], request_id=8, want_reply=False)
 
+    def _write_now_playing(self, is_playing, station_name="", url=""):
+        """Escribe el estado de reproducción para que Conky lo pueda leer."""
+        try:
+            os.makedirs(CONFIG_DIR, exist_ok=True)
+            data = {
+                "is_playing": is_playing,
+                "title": station_name,
+                "artist": "",
+                "source": "radio",
+                "url": url,
+            }
+            with open(STATE_FILE, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception:
+            pass
+
     # ---------- cache ----------
     def _selected_locale(self):
         """Devuelve (code,label,cc) o None si está en Favoritos."""
@@ -1173,6 +1190,9 @@ class OplyRadio(Gtk.Window):
         self.hb.props.subtitle = name
         self._show_connecting(name)
 
+        # escribir estado para Conky
+        self._write_now_playing(True, station_name=name, url=url)
+
         # mpv load
         self._mpv_send(["loadfile", url, "replace"], request_id=2, want_reply=False)
         self._mpv_set("pause", False)
@@ -1203,6 +1223,7 @@ class OplyRadio(Gtk.Window):
         self._mpv_send(["stop"], request_id=3, want_reply=False)
         self.hb.props.subtitle = self.TEXT["subtitle"]
         self.now.set_markup("<b>—</b>")
+        self._write_now_playing(False)
 
     
     #favorites 
@@ -1426,7 +1447,7 @@ class OplyRadio(Gtk.Window):
         md.destroy()
 
     def on_destroy(self, *args):
-        
+        self._write_now_playing(False)
         try:
             self._mpv_send(["quit"], request_id=99, want_reply=False)
         except Exception:
