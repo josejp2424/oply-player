@@ -1,0 +1,3 @@
+#!/bin/bash
+# Oply Radio launcher
+exec /usr/bin/env python3 /usr/local/Oply/Oply-Radio.py "$@"

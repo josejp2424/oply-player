@@ -26,6 +26,7 @@ install:
 	$(INSTALL) -m 0644 desktop/Oply-Convert.desktop "$(APP_DIR)/Oply-Convert.desktop"
 
 	$(INSTALL) -m 0755 tools/oply_status.py "$(BIN_DIR)/oply_status.py"
+	$(INSTALL) -m 0755 tools/oply_radio "$(BIN_DIR)/oply_radio"
 
 	# CLI launchers
 	printf '%s\n' '#!/bin/sh' 'exec $(PYTHON) "$(LOCAL_PREFIX)/Oply/Oply.py" "$$@"' > "$(BIN_DIR)/oply"
