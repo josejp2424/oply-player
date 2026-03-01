@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Oply - Advanced Audio Player Estilo GNOME
 # Author: josejp2424
-# Version: 2.1 (GTK3) - Con soporte para ConkySwitcher
+# Version: 2.2 (GTK3) - Con soporte para ConkySwitcher
 # License: GPL-3.0
 # ====================================================================
 # GNU GENERAL PUBLIC LICENSE Version 3, 29 June 2007
@@ -39,6 +39,7 @@ except (ValueError, ImportError):
 
 import subprocess
 import os
+import pwd
 import glob
 import sys
 import socket
@@ -51,17 +52,32 @@ from pathlib import Path
 
 # Configuración
 SOCKET_PATH = "/tmp/oply_socket"
-CONFIG_DIR = os.path.expanduser("~/.config/oply")
+def get_real_home():
+    """Evita escribir en /root cuando se ejecuta vía sudo/pkexec."""
+    try:
+        if os.geteuid() == 0:
+            sudo_user = os.environ.get("SUDO_USER")
+            if sudo_user:
+                return pwd.getpwnam(sudo_user).pw_dir
+            pkuid = os.environ.get("PKEXEC_UID")
+            if pkuid and pkuid.isdigit():
+                return pwd.getpwuid(int(pkuid)).pw_dir
+    except Exception:
+        pass
+    return os.path.expanduser("~")
+
+REAL_HOME = get_real_home()
+
+CONFIG_DIR = os.path.join(REAL_HOME, ".config", "oply")
 CONFIG_FILE = os.path.join(CONFIG_DIR, "config.json")
 PLAYLISTS_DIR = os.path.join(CONFIG_DIR, "playlists")
 LANG_FILE = os.path.join(CONFIG_DIR, "language.json")
 ICON_PATH = "/usr/local/Oply/icons/oply.svg"
+TV_INDEXER = "/usr/local/Oply/oply-tv-indexer.py"
 SUPPORTED_FORMATS = ['*.mp3', '*.wav', '*.ogg', '*.flac', '*.m4a', '*.aac', '*.mp4', '*.m4v', '*.webm']
 
-# ============================================================================
 # SOPORTE PARA CONKY - Exportar estado de reproducción
 # Agregado por josejp2424 para integración con ConkySwitcher
-# ============================================================================
 STATE_FILE = os.path.join(CONFIG_DIR, "now_playing.json")
 
 def update_now_playing(title, artist="", is_playing=True):
@@ -86,7 +102,7 @@ def clear_now_playing():
             os.remove(STATE_FILE)
     except:
         pass
-# ============================================================================
+
 
 LANGUAGES = {
     "en": {
@@ -109,6 +125,10 @@ LANGUAGES = {
         "minimize_to_tray": "Minimize to Tray",
         "quit_app": "Quit Application",
         "youtube_download": "Download music or video from YouTube",
+        "open_radio": "Open Radio",
+        "open_video": "Open Video",
+        "about_radio_desc": "Online radio player with favourites,\ncountry index and tray support",
+        "about_iptv_desc": "IPTV panel with country index,\nlive streams and MPV playback",
         "about_audio_desc": "Advanced audio player with album art,\nplaylist management and systray support",
         "about_video_desc": "Lightweight video player with\nfullscreen and subtitle support",
         "about_convert_desc": "YouTube video downloader and\naudio/video format converter",
@@ -136,39 +156,16 @@ LANGUAGES = {
         "minimize_to_tray": "Minimizar a Bandeja",
         "quit_app": "Salir de la Aplicación",
         "youtube_download": "Descargar música o video desde YouTube",
+        "open_radio": "Abrir Radio",
+        "open_video": "Abrir Video",
+        "about_radio_desc": "Reproductor de radio online con favoritos,\nindex por país y bandeja del sistema",
+        "about_iptv_desc": "Panel IPTV con index por país,\ncanales en vivo y reproducción con MPV",
         "about_audio_desc": "Reproductor de audio avanzado con carátulas,\ngestión de listas de reproducción y soporte de bandeja",
         "about_video_desc": "Reproductor de video ligero con\nsoporte de pantalla completa y subtítulos",
         "about_convert_desc": "Descargador de videos de YouTube y\nconversor de formatos de audio/video",
         "about_created": "Creado por:",
         "about_license": "Licencia:",
         "about_close": "Cerrar"
-    },
-    "ca": {
-        "title": "Oply Reproductor d'Àudio",
-        "add_files": "Afegir Arxius",
-        "add_folder": "Afegir Carpeta",
-        "save_playlist": "Guardar Llista",
-        "load_playlist": "Carregar Llista",
-        "clear": "Netejar Llista",
-        "subtitle": "Sense àudio carregat",
-        "playing": "Reproduint",
-        "play_pause": "Reproduir/Pausa",
-        "next": "Següent",
-        "previous": "Anterior",
-        "restore": "Mostrar Finestra",
-        "exit": "Sortir",
-        "volume": "Volum",
-        "close_dialog_title": "Tancar Oply?",
-        "close_dialog_message": "Què vols fer?",
-        "minimize_to_tray": "Minimitzar a la Safata",
-        "quit_app": "Sortir de l'Aplicació",
-        "youtube_download": "Descarregar música o vídeo des de YouTube",
-        "about_audio_desc": "Reproductor d'àudio avançat amb caràtules,\ngestió de llistes de reproducció i suport de safata",
-        "about_video_desc": "Reproductor de vídeo lleuger amb\nsuport de pantalla completa i subtítols",
-        "about_convert_desc": "Descarregador de vídeos de YouTube i\nconversor de formats d'àudio/vídeo",
-        "about_created": "Creat per:",
-        "about_license": "Llicència:",
-        "about_close": "Tancar"
     },
     "fr": {
         "title": "Oply Lecteur Audio",
@@ -190,6 +187,10 @@ LANGUAGES = {
         "minimize_to_tray": "Réduire dans la Barre",
         "quit_app": "Quitter l'Application",
         "youtube_download": "Télécharger de la musique ou des vidéos depuis YouTube",
+        "open_radio": "Ouvrir la radio",
+        "open_video": "Ouvrir la vidéo",
+        "about_radio_desc": "Lecteur de radio en ligne avec favoris,\nindex par pays et prise en charge de la zone de notification",
+        "about_iptv_desc": "Panneau IPTV avec index par pays,\nflux en direct et lecture via MPV",
         "about_audio_desc": "Lecteur audio avancé avec pochettes d'album,\ngestion de listes de lecture et support de barre d'état",
         "about_video_desc": "Lecteur vidéo léger avec\nsupport plein écran et sous-titres",
         "about_convert_desc": "Téléchargeur de vidéos YouTube et\nconvertisseur de formats audio/vidéo",
@@ -217,6 +218,10 @@ LANGUAGES = {
         "minimize_to_tray": "In Taskleiste Minimieren",
         "quit_app": "Anwendung Beenden",
         "youtube_download": "Musik oder Video von YouTube herunterladen",
+        "open_radio": "Radio öffnen",
+        "open_video": "Video öffnen",
+        "about_radio_desc": "Online-Radio mit Favoriten,\nLänderindex und Tray-Unterstützung",
+        "about_iptv_desc": "IPTV-Panel mit Länderindex,\nLive-Streams und MPV-Wiedergabe",
         "about_audio_desc": "Erweiterter Audio-Player mit Album-Cover,\nWiedergabelistenverwaltung und Taskleistenunterstützung",
         "about_video_desc": "Leichter Video-Player mit\nVollbildmodus und Untertitelunterstützung",
         "about_convert_desc": "YouTube-Video-Downloader und\nAudio/Video-Format-Konverter",
@@ -244,6 +249,10 @@ LANGUAGES = {
         "minimize_to_tray": "Riduci a Icona",
         "quit_app": "Chiudi Applicazione",
         "youtube_download": "Scarica musica o video da YouTube",
+        "open_radio": "Apri Radio",
+        "open_video": "Apri Video",
+        "about_radio_desc": "Radio online con preferiti,\nindice per paese e supporto tray",
+        "about_iptv_desc": "Pannello IPTV con indice per paese,\nstream live e riproduzione MPV",
         "about_audio_desc": "Lettore audio avanzato con copertine,\ngestione playlist e supporto barra di sistema",
         "about_video_desc": "Lettore video leggero con\nsupporto schermo intero e sottotitoli",
         "about_convert_desc": "Scaricatore video YouTube e\nconvertitore formati audio/video",
@@ -271,6 +280,10 @@ LANGUAGES = {
         "minimize_to_tray": "Minimizar para Bandeja",
         "quit_app": "Sair da Aplicação",
         "youtube_download": "Baixar música ou vídeo do YouTube",
+        "open_radio": "Abrir Rádio",
+        "open_video": "Abrir Vídeo",
+        "about_radio_desc": "Rádio online com favoritos,\níndice por país e suporte à bandeja",
+        "about_iptv_desc": "Painel IPTV com índice por país,\nstreams ao vivo e reprodução MPV",
         "about_audio_desc": "Reprodutor de áudio avançado com capas,\ngerenciamento de listas e suporte de bandeja",
         "about_video_desc": "Reprodutor de vídeo leve com\nsuporte de tela cheia e legendas",
         "about_convert_desc": "Baixador de vídeos do YouTube e\nconversor de formatos de áudio/vídeo",
@@ -298,6 +311,10 @@ LANGUAGES = {
         "minimize_to_tray": "Свернуть в Трей",
         "quit_app": "Выйти из Приложения",
         "youtube_download": "Скачать музыку или видео с YouTube",
+        "open_radio": "Открыть радио",
+        "open_video": "Открыть видео",
+        "about_radio_desc": "Онлайн‑радио с избранным,\nиндексом по странам и поддержкой трея",
+        "about_iptv_desc": "IPTV‑панель с индексом по странам,\nпрямыми потоками и воспроизведением MPV",
         "about_audio_desc": "Расширенный аудиоплеер с обложками,\nуправлением плейлистами и поддержкой трея",
         "about_video_desc": "Легкий видеоплеер с поддержкой\nполноэкранного режима и субтитров",
         "about_convert_desc": "Загрузчик видео с YouTube и\nконвертер аудио/видео форматов",
@@ -325,6 +342,10 @@ LANGUAGES = {
         "minimize_to_tray": "トレイに最小化",
         "quit_app": "アプリケーションを終了",
         "youtube_download": "YouTubeから音楽または動画をダウンロード",
+        "open_radio": "ラジオを開く",
+        "open_video": "動画を開く",
+        "about_radio_desc": "お気に入り対応のオンラインラジオ、\n国別インデックスとトレイ対応",
+        "about_iptv_desc": "国別インデックス付きIPTV、\nライブ配信とMPV再生",
         "about_audio_desc": "アルバムアート付き高度なオーディオプレーヤー、\nプレイリスト管理とトレイサポート",
         "about_video_desc": "フルスクリーンと\n字幕サポート付き軽量ビデオプレーヤー",
         "about_convert_desc": "YouTubeビデオダウンローダーと\nオーディオ/ビデオフォーマットコンバーター",
@@ -352,6 +373,10 @@ LANGUAGES = {
         "minimize_to_tray": "最小化到托盘",
         "quit_app": "退出应用程序",
         "youtube_download": "从YouTube下载音乐或视频",
+        "open_radio": "打开电台",
+        "open_video": "打开视频",
+        "about_radio_desc": "在线电台播放器，支持收藏、\n按国家索引与托盘",
+        "about_iptv_desc": "IPTV 面板，支持国家索引、\n直播流与 MPV 播放",
         "about_audio_desc": "高级音频播放器，带专辑封面、\n播放列表管理和托盘支持",
         "about_video_desc": "轻量级视频播放器，\n支持全屏和字幕",
         "about_convert_desc": "YouTube视频下载器和\n音频/视频格式转换器",
@@ -379,6 +404,10 @@ LANGUAGES = {
         "minimize_to_tray": "تصغير إلى الدرج",
         "quit_app": "إنهاء التطبيق",
         "youtube_download": "تحميل موسيقى أو فيديو من يوتيوب",
+        "open_radio": "فتح الراديو",
+        "open_video": "فتح الفيديو",
+        "about_radio_desc": "مشغّل راديو عبر الإنترنت مع المفضلة،\nفهرس حسب البلد ودعم صينية النظام",
+        "about_iptv_desc": "لوحة IPTV مع فهرس حسب البلد،\nبث مباشر وتشغيل عبر MPV",
         "about_audio_desc": "مشغل صوت متقدم مع أغلفة الألبومات،\nإدارة قوائم التشغيل ودعم الدرج",
         "about_video_desc": "مشغل فيديو خفيف مع\nدعم وضع ملء الشاشة والترجمات",
         "about_convert_desc": "محمل فيديو يوتيوب ومحول\nتنسيقات الصوت/الفيديو",
@@ -406,6 +435,10 @@ LANGUAGES = {
         "minimize_to_tray": "트레이로 최소화",
         "quit_app": "애플리케이션 종료",
         "youtube_download": "YouTube에서 음악 또는 비디오 다운로드",
+        "open_radio": "라디오 열기",
+        "open_video": "비디오 열기",
+        "about_radio_desc": "즐겨찾기 지원 온라인 라디오,\n국가 인덱스 및 트레이 지원",
+        "about_iptv_desc": "국가 인덱스 IPTV 패널,\n라이브 스트림 및 MPV 재생",
         "about_audio_desc": "앨범 아트, 재생목록 관리 및\n트레이 지원이 있는 고급 오디오 플레이어",
         "about_video_desc": "전체화면 및 자막을\n지원하는 경량 비디오 플레이어",
         "about_convert_desc": "YouTube 비디오 다운로더 및\n오디오/비디오 형식 변환기",
@@ -433,6 +466,10 @@ LANGUAGES = {
         "minimize_to_tray": "Minimalizuj do Zasobnika",
         "quit_app": "Zakończ Aplikację",
         "youtube_download": "Pobierz muzykę lub wideo z YouTube",
+        "open_radio": "Otwórz radio",
+        "open_video": "Otwórz wideo",
+        "about_radio_desc": "Radio online z ulubionymi,\nindeksem krajów i obsługą zasobnika",
+        "about_iptv_desc": "Panel IPTV z indeksem krajów,\ntransmisjami na żywo i odtwarzaniem MPV",
         "about_audio_desc": "Zaawansowany odtwarzacz audio z okładkami,\nzarządzaniem playlistami i wsparciem zasobnika",
         "about_video_desc": "Lekki odtwarzacz wideo z\nwsparciem pełnego ekranu i napisów",
         "about_convert_desc": "Pobieracz wideo YouTube i\nkonwerter formatów audio/wideo",
@@ -459,6 +496,7 @@ def load_language():
     lang_env = os.environ.get('LANG', '')
     
     if lang_env and lang_env != 'C' and lang_env != 'POSIX':
+
         lang_code = lang_env.split('_')[0].lower()
         if lang_code in LANGUAGES:
             return LANGUAGES[lang_code]
@@ -788,6 +826,33 @@ class OplyPlayer(Gtk.Window):
         hb.pack_start(btn_youtube)
 
 
+        # Botón Radio
+        btn_radio = Gtk.Button()
+        btn_radio.set_relief(Gtk.ReliefStyle.NONE)
+        try:
+            pb = GdkPixbuf.Pixbuf.new_from_file_at_scale("/usr/local/Oply/icons/radio.svg", 24, 24, True)
+            img_radio = Gtk.Image.new_from_pixbuf(pb)
+        except Exception:
+            img_radio = Gtk.Image.new_from_icon_name("media-playback-start-symbolic", Gtk.IconSize.BUTTON)
+        btn_radio.add(img_radio)
+        btn_radio.set_tooltip_text(self.TEXT.get("open_radio", "Open Radio"))
+        btn_radio.connect("clicked", self.on_open_radio)
+        hb.pack_start(btn_radio)
+
+        # Botón Video
+        btn_video = Gtk.Button()
+        btn_video.set_relief(Gtk.ReliefStyle.NONE)
+        try:
+            pb = GdkPixbuf.Pixbuf.new_from_file_at_scale("/usr/local/Oply/icons/oply-video.svg", 24, 24, True)
+            img_video = Gtk.Image.new_from_pixbuf(pb)
+        except Exception:
+            img_video = Gtk.Image.new_from_icon_name("video-x-generic-symbolic", Gtk.IconSize.BUTTON)
+        btn_video.add(img_video)
+        btn_video.set_tooltip_text(self.TEXT.get("open_video", "Open Video"))
+        btn_video.connect("clicked", self.on_open_video)
+        hb.pack_start(btn_video)
+
+
         self.menu_button = Gtk.MenuButton()
         self.menu_button.add(Gtk.Image.new_from_icon_name("open-menu-symbolic", Gtk.IconSize.BUTTON))
         self.create_menu()
@@ -1007,6 +1072,7 @@ class OplyPlayer(Gtk.Window):
         menu.append(self.TEXT["save_playlist"], "win.save")
         menu.append(self.TEXT["load_playlist"], "win.load")
         menu.append(self.TEXT["clear"], "win.clear")
+        menu.append(self.TEXT.get("tv_make_index", "TV: Create index"), "win.tv_index")
         menu.append("About Oply", "win.about")
 
         self.menu_button.set_menu_model(menu)
@@ -1027,11 +1093,121 @@ class OplyPlayer(Gtk.Window):
         clear_action.connect("activate", lambda a, p: self.on_clear(None))
         action_group.add_action(clear_action)
 
+        tv_index_action = Gio.SimpleAction.new("tv_index", None)
+        tv_index_action.connect("activate", lambda a, p: self.on_tv_make_index())
+        action_group.add_action(tv_index_action)
+
         about_action = Gio.SimpleAction.new("about", None)
         about_action.connect("activate", lambda a, p: self.show_about())
         action_group.add_action(about_action)
 
         self.insert_action_group("win", action_group)
+
+    def on_tv_make_index(self):
+        locales = self._get_available_locales()
+
+        dlg = Gtk.Dialog(title=self.TEXT.get("tv_make_index", "TV: Create index"), parent=self, flags=0)
+        dlg.add_buttons("Cancelar", Gtk.ResponseType.CANCEL, "Crear", Gtk.ResponseType.OK)
+        dlg.set_default_size(420, 360)
+
+        box = dlg.get_content_area()
+        info = Gtk.Label(label="Elegí 1–3 idiomas/países para crear el index de TV (IPTV).")
+        info.set_halign(Gtk.Align.START)
+        info.set_margin_bottom(8)
+        box.add(info)
+
+        store = Gtk.ListStore(str, str)
+        for it in locales:
+            store.append([it["code"], it["label"]])
+
+        tv = Gtk.TreeView(model=store)
+        sel = tv.get_selection()
+        sel.set_mode(Gtk.SelectionMode.MULTIPLE)
+
+        r1 = Gtk.CellRendererText()
+        tv.append_column(Gtk.TreeViewColumn("Code", r1, text=0))
+        r2 = Gtk.CellRendererText()
+        tv.append_column(Gtk.TreeViewColumn("Locale", r2, text=1))
+
+        sc = Gtk.ScrolledWindow()
+        sc.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
+        sc.add(tv)
+        box.add(sc)
+
+        dlg.show_all()
+        resp = dlg.run()
+        if resp != Gtk.ResponseType.OK:
+            dlg.destroy()
+            return
+
+        model, paths = sel.get_selected_rows()
+        chosen = [model[p][0] for p in paths]
+        dlg.destroy()
+
+        if not (1 <= len(chosen) <= 3):
+            self._info_dialog("Oply", "Elegí 1, 2 o 3 locales.")
+            return
+
+        ok, out = self._run_tv_indexer(chosen)
+        if ok:
+            self._info_dialog("Oply", out)
+        else:
+            self._info_dialog("Oply", out or "Error creando el index.")
+
+    def _get_available_locales(self):
+        try:
+            import subprocess
+            if os.path.exists(TV_INDEXER):
+                res = subprocess.run([sys.executable, TV_INDEXER, "--list-locales"],
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+                if res.returncode == 0 and res.stdout.strip():
+                    data = json.loads(res.stdout.strip())
+                    if isinstance(data, list) and data:
+                        prefer = ["ar","ca","es","fr","it","pt","hu","ru","ja","zh"]
+                        ordered = []
+                        seen = set()
+                        for p in prefer:
+                            for it in data:
+                                if it.get("code") == p and p not in seen:
+                                    ordered.append(it); seen.add(p)
+                        for it in data:
+                            c = it.get("code")
+                            if c and c not in seen:
+                                ordered.append(it); seen.add(c)
+                        return ordered
+        except Exception:
+            pass
+
+        return [
+            {"code":"ar","label":"العربية (AR)"},
+            {"code":"ca","label":"Català (CA)"},
+            {"code":"es","label":"Español (ES/AR)"},
+            {"code":"fr","label":"Français (FR)"},
+            {"code":"it","label":"Italiano (IT)"},
+            {"code":"pt","label":"Português (PT/BR)"},
+            {"code":"hu","label":"Magyar (HU)"},
+            {"code":"ru","label":"Русский (RU)"},
+            {"code":"ja","label":"日本語 (JA)"},
+            {"code":"zh","label":"中文 (ZH)"},
+        ]
+
+    def _run_tv_indexer(self, locales_list):
+        try:
+            import subprocess
+            cmd = [sys.executable, TV_INDEXER, "--locales", ",".join(locales_list)]
+            res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+            if res.returncode == 0:
+                return True, (res.stdout.strip() or "OK")
+            return False, (res.stderr.strip() or res.stdout.strip() or "Error")
+        except Exception as e:
+            return False, str(e)
+
+    def _info_dialog(self, title, message):
+        dlg = Gtk.MessageDialog(parent=self, flags=0, message_type=Gtk.MessageType.INFO,
+                                buttons=Gtk.ButtonsType.CLOSE, text=title)
+        dlg.format_secondary_text(message)
+        dlg.run()
+        dlg.destroy()
 
     def setup_ui(self):
         main_vbox = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=0)
@@ -1223,7 +1399,7 @@ class OplyPlayer(Gtk.Window):
         self.btn_viz = Gtk.ToggleButton()
         self.btn_viz.add(Gtk.Image.new_from_icon_name("audio-speakers-symbolic", Gtk.IconSize.BUTTON))
         self.btn_viz.set_tooltip_text("Show/Hide Visualizer")
-        self.btn_viz.set_active(True)  
+        self.btn_viz.set_active(True) 
         self.btn_viz.connect("toggled", self.toggle_visualizer)
         right_box.pack_start(self.btn_viz, False, False, 5)
 
@@ -1281,7 +1457,7 @@ class OplyPlayer(Gtk.Window):
 
         # Versión
         version_label = Gtk.Label()
-        version_label.set_markup("<span size='small'>Version 2.1 GTK3</span>")
+        version_label.set_markup("<span size='small'>Version 2.2 GTK3</span>")
         version_label.set_halign(Gtk.Align.CENTER)
         version_label.get_style_context().add_class("dim-label")
         content.pack_start(version_label, False, False, 0)
@@ -1294,19 +1470,29 @@ class OplyPlayer(Gtk.Window):
         desc_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
 
         desc1 = Gtk.Label()
-        desc1.set_markup(f"<b>📀 Oply Audio Player</b>\n{self.TEXT['about_audio_desc']}")
+        desc1.set_markup(f"<b> Oply Audio Player</b>\n{self.TEXT['about_audio_desc']}")
         desc1.set_justify(Gtk.Justification.CENTER)
         desc_box.pack_start(desc1, False, False, 0)
 
         desc2 = Gtk.Label()
-        desc2.set_markup(f"<b>🎬 Oply Video Player</b>\n{self.TEXT['about_video_desc']}")
+        desc2.set_markup(f"<b> Oply Video Player</b>\n{self.TEXT['about_video_desc']}")
         desc2.set_justify(Gtk.Justification.CENTER)
         desc_box.pack_start(desc2, False, False, 0)
 
         desc3 = Gtk.Label()
-        desc3.set_markup(f"<b>⬇️ Oply Convert</b>\n{self.TEXT['about_convert_desc']}")
+        desc3.set_markup(f"<b> Oply Convert</b>\n{self.TEXT['about_convert_desc']}")
         desc3.set_justify(Gtk.Justification.CENTER)
         desc_box.pack_start(desc3, False, False, 0)
+
+        desc4 = Gtk.Label()
+        desc4.set_markup(f"<b> Oply Radio</b>\n{self.TEXT.get('about_radio_desc','')}")
+        desc4.set_justify(Gtk.Justification.CENTER)
+        desc_box.pack_start(desc4, False, False, 0)
+
+        desc5 = Gtk.Label()
+        desc5.set_markup(f"<b> Oply IPTV</b>\n{self.TEXT.get('about_iptv_desc','')}")
+        desc5.set_justify(Gtk.Justification.CENTER)
+        desc_box.pack_start(desc5, False, False, 0)
 
         content.pack_start(desc_box, False, False, 0)
 
@@ -1332,7 +1518,7 @@ class OplyPlayer(Gtk.Window):
         copyright_label.get_style_context().add_class("dim-label")
         content.pack_start(copyright_label, False, False, 0)
 
-
+        # Botón cerrar
         dialog.add_button(self.TEXT["about_close"], Gtk.ResponseType.CLOSE)
 
         dialog.show_all()
@@ -1361,7 +1547,7 @@ class OplyPlayer(Gtk.Window):
         filter_audio.add_mime_type("audio/*")
         dialog.add_filter(filter_audio)
 
-
+        # Conectar señal para doble clic
         def on_file_activated(widget):
             dialog.response(Gtk.ResponseType.OK)
 
@@ -1466,6 +1652,45 @@ class OplyPlayer(Gtk.Window):
                 text="Error al abrir Oply-Convert"
             )
             dialog.format_secondary_text(f"No se pudo abrir Oply-Convert: {str(e)}")
+            dialog.run()
+            dialog.destroy()
+
+
+    def on_open_radio(self, button):
+        """Abrir Oply Radio"""
+        try:
+            subprocess.Popen(
+                ["/usr/local/bin/oply_radio"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        except Exception as e:
+            dialog = Gtk.MessageDialog(
+                transient_for=self,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.OK,
+                text="Error al abrir Oply Radio"
+            )
+            dialog.format_secondary_text(f"No se pudo abrir Oply Radio: {str(e)}")
+            dialog.run()
+            dialog.destroy()
+
+    def on_open_video(self, button):
+        """Abrir Oply Video"""
+        try:
+            subprocess.Popen(
+                [sys.executable, "/usr/local/Oply/Oply-Video.py"],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+        except Exception as e:
+            dialog = Gtk.MessageDialog(
+                transient_for=self,
+                message_type=Gtk.MessageType.ERROR,
+                buttons=Gtk.ButtonsType.OK,
+                text="Error al abrir Oply Video"
+            )
+            dialog.format_secondary_text(f"No se pudo abrir Oply Video: {str(e)}")
             dialog.run()
             dialog.destroy()
 
@@ -1638,7 +1863,7 @@ class OplyPlayer(Gtk.Window):
                 except:
                     pass
 
-
+        # 1) Intentar extraer carátula embebida (stream v:0)
         print(f"Extrayendo carátula de: {filepath}")
         ok, cover_path = extract_cover_art(filepath, cover_base)
         if ok and cover_path:
@@ -1822,7 +2047,7 @@ class OplyPlayer(Gtk.Window):
             else:
                 self.visualizer.start_animation()
         
-
+        # SOPORTE CONKY: Actualizar estado de pausa/reproducción
         if self.audio_files and self.current_index < len(self.audio_files):
             filepath = self.audio_files[self.current_index]
             metadata = get_metadata(filepath)
