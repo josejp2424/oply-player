@@ -24,6 +24,7 @@ install:
 	$(INSTALL) -m 0644 desktop/Oply.desktop "$(APP_DIR)/Oply.desktop"
 	$(INSTALL) -m 0644 desktop/Oply-video.desktop "$(APP_DIR)/Oply-video.desktop"
 	$(INSTALL) -m 0644 desktop/Oply-Convert.desktop "$(APP_DIR)/Oply-Convert.desktop"
+	$(INSTALL) -m 0644 desktop/Oply-radio.desktop "$(APP_DIR)/Oply-radio.desktop"
 
 	$(INSTALL) -m 0755 tools/oply_status.py "$(BIN_DIR)/oply_status.py"
 	$(INSTALL) -m 0755 tools/oply_radio "$(BIN_DIR)/oply_radio"
