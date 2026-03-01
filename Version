@@ -1,0 +1,25 @@
+Oply 2.2 — Changelog
+
+Added Oply Radio: new standalone radio player GUI.
+
+Added Oply IPTV/TV integration inside Oply Video.
+
+Oply Video: country/locale indexing for IPTV lists (per-user config under ~/.config/oply/, no root usage).
+
+Oply Video: IPTV channel selector moved to a separate window so playback uses the full player area.
+
+Oply Video: added “Connecting…” overlay while a stream starts (better feedback during black screen/buffering).
+
+Oply Radio: added minimize to tray with tray menu and localized labels.
+
+Oply Radio: added favorites (right-click add/remove), favorites list accessible from the heart button, and “★ Favorites” in the country selector.
+
+Oply Radio: improved shutdown so the app fully exits (no background process left running).
+
+Oply (Audio): restored Radio launcher button and added Video launcher button in the headerbar; icons scaled to match existing UI.
+
+Added .desktop launcher for Oply Radio with the correct icon and executable path.
+
+Updated About dialog to mention the new Radio and IPTV integrations (translated in supported languages).
+
+
