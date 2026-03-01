@@ -11,6 +11,7 @@ Name[zh_CN]=Oply 转换
 Name[ja]=Oply 変換
 Name[ar]=أوبلي تحويل
 Name[hu]=Oply Átalakító
+
 GenericName=Descargador de música y video de YouTube
 GenericName[es]=Descargador de YouTube
 GenericName[en_GB]=YouTube Downloader
@@ -20,6 +21,7 @@ GenericName[pt]=Downloader do YouTube
 GenericName[de]=YouTube-Downloader
 GenericName[ru]=Загрузчик YouTube
 GenericName[zh_CN]=YouTube 下载器
+
 Comment=Descargue fácilmente música o video desde YouTube
 Comment[es]=Descargue música o video desde YouTube fácilmente
 Comment[en_GB]=Easily download music or videos from YouTube
@@ -29,9 +31,10 @@ Comment[pt]=Baixe facilmente músicas ou vídeos do YouTube
 Comment[de]=Laden Sie ganz einfach Musik oder Videos von YouTube herunter
 Comment[ru]=Просто загружайте музыку и видео с YouTube
 Comment[zh_CN]=轻松从 YouTube 下载音乐或视频
+
 Keywords=youtube;descargar;convertir;musica;video;audio;mp3;mp4;oply;
 Exec=/usr/local/Oply/Oply-Convert
-Icon=/usr/local/Oply/icons/oply.svg
+Icon=/usr/local/Oply/icons/oply-convert.svg
 Terminal=false
 StartupNotify=true
 Categories=AudioVideo;Audio;Video;Network;
